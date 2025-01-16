@@ -1,7 +1,8 @@
-.venv
-.Include
-.Lib/site-packages
-.Scripts/
+# Ignore pasta do ambiente virtual
+.venv/
+Scripts/
+Lib/site-packages/
+
+
+.Include/
 .pyvenv.cfg
-Scripts
-Lib/site-packages
