@@ -1,5 +1,7 @@
 .venv
 .Include
-.Lib
+.Lib/site-packages
 .Scripts
 .pyvenv.cfg
+Scripts
+Lib/site-packages
