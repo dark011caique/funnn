@@ -1,10 +1,13 @@
 import openpyxl
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
 import re
 from time import sleep
+from envio import enviar_mensagens_whatsapp
+import PySimpleGUI as sg
+
 
 def is_valid_contact(contact):
     """
@@ -14,124 +17,164 @@ def is_valid_contact(contact):
     pattern = r"^\(?\d{2}\)?\s?\d{4,5}-\d{4}$"
     return bool(re.match(pattern, contact))
 
-# Carregar a planilha existente
-planilha = openpyxl.load_workbook('dados.xlsx')
-dados = planilha['Planilha1']
 
-driver = webdriver.Chrome()
-# Entrar no maps
-driver.get("https://www.google.com.br/maps/preview")
-sleep(5)
-# Escrever e buscar 
-escreve = driver.find_element(By.XPATH, '//*[@id="searchboxinput"]')
-sleep(2)
+def create_interface():
+    # Configurar o tema do PySimpleGUI
+    sg.theme('Reddit')
 
-buscar = input("Digite a busca: ")
+    # Definir o layout da janela
+    tela_busca = [
+        [sg.Text('Estabelecimentos comerciais')],
+        [sg.Input(key='comercio')],
+        [sg.Text('Cidade')],
+        [sg.Input(key='local')],
+        [sg.Button('Buscar')]
+    ]
 
-escreve.send_keys(buscar)
-sleep(1)
-botao_pesquisa = driver.find_element(By.XPATH, '//*[@id="searchbox-searchbutton"]/span')
-sleep(1)
-botao_pesquisa.click()
-sleep(3)
-# Filtrar 4.0
-filtro = driver.find_element(By.XPATH, '//*[@id="QA0Szd"]/div/div/div[1]/div[2]/div/div[1]/div/div/div[1]/div[1]/div[1]/div/div[2]/div[2]/div[1]/button/div/div[1]')
-filtro.click()
-sleep(1)
-estrelas = driver.find_element(By.XPATH, '//*[@id="action-menu"]/div[6]')
-estrelas.click()
-sleep(3)
+    # Criar a janela
+    janela = sg.Window('Buscar', layout=tela_busca)
 
-# Adicionar a lógica de rolar até o final da página
-last_height = driver.execute_script("return document.body.scrollHeight")
+    # Loop de eventos
+    while True:
+        event, values = janela.read()
+        if event == sg.WIN_CLOSED or event == 'Buscar':
+            break
 
-# Inicializar a quantidade de elementos
-quantidade_anterior = 0
+    # Fechar a janela
+    janela.close()
 
-while True:
-    # Rola até o final da página
-    driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-    sleep(2)
-    
-    # Verifica a quantidade de elementos
-    resultados = driver.find_elements(By.XPATH, '//*[@id="QA0Szd"]/div/div/div[1]/div[2]/div/div[1]/div/div/div[1]/div[1]/div')
-    quantidade_atual = len(resultados)
+    # Pegar os valores de entrada
+    comercio = values['comercio']
+    local = values['local']
 
-    print(f"Quantidade atual de resultados: {quantidade_atual}")
+    # Concatenar os valores e buscar no Google Maps
+    busca = f'{comercio}  {local}'
 
-    # Se a quantidade atual for maior que a anterior, clica no último elemento
-    if quantidade_atual > quantidade_anterior:
-        ultimo_elemento = resultados[-1]
-        driver.execute_script("arguments[0].scrollIntoView();", ultimo_elemento)
-        sleep(1)
+    return busca
 
-        # Espera explícita para garantir que o elemento esteja clicável
-        WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="QA0Szd"]/div/div/div[1]/div[2]/div/div[1]/div/div/div[1]/div[1]/div[last()]')))
-        sleep(1)
+
+def extrair_dados_google_maps(driver, planilha_path):
+    """
+    Extrai dados de nome e contato do Google Maps e salva em uma planilha Excel.
+
+    Args:
+        driver (webdriver): O WebDriver do Selenium configurado.
+        planilha_path (str): Caminho da planilha Excel para salvar os dados.
+    """
+
+    # Carregar a planilha existente
+    planilha = openpyxl.load_workbook(planilha_path)
+    dados = planilha['contatos']
+
+
+    buscar = create_interface()
+    sleep(10)
+
+    # Acessar o Google Maps
+    driver.get("https://www.google.com.br/maps/preview")
+    sleep(5)
+
+    # Busca no Google Maps
+    escreve = driver.find_element(By.XPATH, '//*[@id="searchboxinput"]')
+    sleep(1)
+    escreve.send_keys(buscar)
+    sleep(1)
+    botao_pesquisa = driver.find_element(By.XPATH, '//*[@id="searchbox-searchbutton"]/span')
+    sleep(1)
+    botao_pesquisa.click()
+    sleep(1)
+
+    # Scroll para carregar todos os resultados
+    last_height = driver.execute_script("return document.body.scrollHeight")
+    quantidade_anterior = 0
+
+    while True:
+        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        sleep(2)
+        resultados = driver.find_elements(By.XPATH, '//*[@id="QA0Szd"]/div/div/div[1]/div[2]/div/div[1]/div/div/div[1]/div[1]/div')
+        quantidade_atual = len(resultados)
+
+        if quantidade_atual > quantidade_anterior:
+            ultimo_elemento = resultados[-1]
+            driver.execute_script("arguments[0].scrollIntoView();", ultimo_elemento)
+            sleep(1)
+            quantidade_anterior = quantidade_atual
+        else:
+            break
+
+    # Loop para clicar em cada elemento e extrair dados
+    elements = driver.find_elements(By.XPATH, '//a[@class="hfpxzc"]')
+    total_elements = len(elements)
+
+    for i in range(1, total_elements + 1):
         try:
-            ultimo_elemento.click()
+            xpath = f'(//a[@class="hfpxzc"])[{i}]'
+            sleep(3)
+            element = driver.find_element(By.XPATH, xpath)
+            element.click()
+            sleep(2)
+
+            # Extrair nome e contato
+            nome = driver.find_element(By.XPATH, '//h1[text()]').text
+            contato = "Não tem contato"
+
+            for j in range(2, 6):
+                try:
+                    contato_elemento = driver.find_element(By.XPATH, f'(//div[@class="Io6YTe fontBodyMedium kR99db fdkmkc "])[{j}]')
+                    sleep(5)
+                    texto_contato = contato_elemento.text
+                    if is_valid_contact(texto_contato):
+                        contato = texto_contato
+                        break
+                except:
+                    continue
+
+            print(f"nome: {nome}, Contato: {contato}")
+            sleep(2)
+            dados.append([nome, contato])
+            planilha.save(planilha_path)
+            sleep(1)
+
+            # Voltar para a lista
+            driver.find_element(By.XPATH, '//*[@id="omnibox-singlebox"]/div/div[1]/button/span').click()
+            sleep(3)
         except Exception as e:
-            print(f"Erro ao clicar no último elemento: {e}")
-        
-        quantidade_anterior = quantidade_atual
+            print(f"Erro ao processar elemento {i}: {e}")
+            continue
 
-    # Verifica se a quantidade de elementos não mudou desde a última verificação
-    sleep(2)
-    novos_resultados = driver.find_elements(By.XPATH, '//*[@id="QA0Szd"]/div/div/div[1]/div[2]/div/div[1]/div/div/div[1]/div[1]/div')
-    nova_quantidade = len(novos_resultados)
 
-    if nova_quantidade == quantidade_atual:
-        break
+def main():
+    """
+    Função principal para executar o script de extração e envio de mensagens.
+    """
+    planilha_path = 'dados.xlsx'
+    chrome_user_data_dir = r"C:\Users\Win10\AppData\Local\Google\Chrome\User Data"# Substitua pelo caminho correto
 
-# Descobre quantos elementos existem no XPath
-elements = driver.find_elements(By.XPATH, '//a[@class="hfpxzc"]')  # Captura todos os elementos com o XPath desejado
-total_elements = len(elements)  # Conta o número de elementos
+    # Configuração do Selenium para se conectar ao navegador já aberto
+    options = webdriver.ChromeOptions()
+    options.add_experimental_option("debuggerAddress", "localhost:9222")  # Conecta à porta de depuração
+    options.add_argument(f"user-data-dir={chrome_user_data_dir}")  # Usar o diretório de dados do usuário
 
-# Loop para clicar em cada elemento
-for i in range(1, total_elements + 1):  # Índices no XPath começam em 1
+    # Usando o WebDriver Manager para baixar o ChromeDriver automaticamente
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+
+
     try:
-        # Gera o XPath dinâmico com o índice
-        xpath = f'(//a[@class="hfpxzc"])[{i}]'
-        
-        # Localiza e clica no elemento
-        element = driver.find_element(By.XPATH, xpath)
-        element.click()
-        sleep(2)  # Espera 2 segundos após clicar
+        print("Extraindo dados do Google Maps...")
+        extrair_dados_google_maps(driver, planilha_path)
 
-        # Encontrar e copiar os campos "nome" e "contato" do primeiro resultado
-        extrair_nome = driver.find_element(By.XPATH, '//h1[text()]')
-        nomes = extrair_nome.text
+        sleep(1)
+        print("Finalizado pesquisa no google maps, vamos começar o envio de mensagem! ")
+        sleep(1)
 
-        contato = "Não tem contato"
-        for j in range(2, 6):  # Tentativa de arr[2] até arr[5]
-            try:
-                extrair_contato = driver.find_element(By.XPATH, f'(//div[@class="Io6YTe fontBodyMedium kR99db fdkmkc "])[{j}]')
-                texto_contato = extrair_contato.text
-                if is_valid_contact(texto_contato):
-                    contato = texto_contato
-                    break
-            except:
-                continue
+        print("Enviando mensagens no WhatsApp...")
+        chrome_user_data_dir = r"C:\Users\Win10\AppData\Local\Google\Chrome\User Data"# Substitua pelo caminho correto
+        enviar_mensagens_whatsapp(planilha_path, chrome_user_data_dir)
 
-        print(f"Nome: {nomes}, Contato: {contato}")
 
-        # Adicionar os dados à planilha
-        dados.append([nomes, contato])
+    finally:
+        print("Processo concluído.")
+        driver.quit()
 
-        # Salvar a planilha
-        planilha.save('dados.xlsx')
-
-        sleep(5)
-        
-        # Clica no botão para voltar
-        anterior = driver.find_element(By.XPATH, '//*[@id="omnibox-singlebox"]/div/div[1]/button/span')
-        anterior.click()
-        sleep(3)  # Espera 3 segundos antes de clicar no próximo elemento
-    except Exception as e:
-        print(f"Erro ao clicar no elemento {i}: {e}")
-        continue
-
-input("Pressione Enter para fechar...")
-
-# Fecha o navegador
-driver.quit()
+if __name__ == "__main__":
+    main()
