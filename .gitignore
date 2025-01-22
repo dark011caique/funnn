@@ -2,8 +2,8 @@
 .venv/
 Scripts/
 Lib/site-packages/
-teste/
-dados.xlsx
+.teste/
+.dados.xlsx
 
 
 .Include/
