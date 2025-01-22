@@ -2,7 +2,7 @@
 .venv/
 Scripts/
 Lib/site-packages/
-.teste/
+.testes/
 .dados.xlsx
 
 
