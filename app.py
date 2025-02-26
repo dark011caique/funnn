@@ -109,10 +109,10 @@ def extrair_dados_google_maps(driver, planilha_path):
     for i in range(1, total_elements + 1):
         try:
             xpath = f'(//a[@class="hfpxzc"])[{i}]'
-            sleep(3)
+            sleep(5)
             element = driver.find_element(By.XPATH, xpath)
             element.click()
-            sleep(2)
+            sleep(5)
 
             # Extrair nome e contato
             nome = driver.find_element(By.XPATH, '//h1[text()]').text
@@ -137,7 +137,7 @@ def extrair_dados_google_maps(driver, planilha_path):
 
             # Voltar para a lista
             driver.find_element(By.XPATH, '//*[@id="omnibox-singlebox"]/div/div[1]/button/span').click()
-            sleep(3)
+            sleep(7)
         except Exception as e:
             print(f"Erro ao processar elemento {i}: {e}")
             continue

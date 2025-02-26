@@ -4,7 +4,40 @@ from time import sleep
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from openpyxl import load_workbook
+import PySimpleGUI as sg
+import tkinter as tk
 
+def create_interface():
+    # Configurar o tema do PySimpleGUI
+    sg.theme('Reddit')
+
+    # Definir o layout da janela
+    tela_busca = [
+        [sg.Text('Descrição')],
+        [sg.Input(key='descricao', size=(20, 5))],  # Ajustando o tamanho do campo
+        [sg.Button('Enb')]
+    ]
+
+    # Criar a janela
+    janela = sg.Window('Buscar', layout=tela_busca)
+
+    # Loop de eventos
+    while True:
+        event, values = janela.read()
+        if event == sg.WIN_CLOSED or event == 'Buscar':
+            break
+
+    # Fechar a janela
+    janela.close()
+
+    # Pegar os valores de entrada
+    comercio = values['comercio']
+    local = values['local']
+
+    # Concatenar os valores e buscar no Google Maps
+    busca = f'{comercio}  {local}'
+
+    return busca
 
 # Caminho para o diretório do perfil do Chrome (onde seu login está)
 chrome_user_data_dir = r"C:\Users\Win10\AppData\Local\Google\Chrome\User Data"# Substitua pelo caminho correto
