@@ -7,102 +7,169 @@ import re
 import subprocess
 import os
 from time import sleep
-import PySimpleGUI as sg
+import customtkinter as ctk
 from openpyxl import load_workbook
-import tkinter as tk
+
+# Configurar tema do customtkinter
+ctk.set_appearance_mode("dark")  # Modo escuro
+ctk.set_default_color_theme("dark-blue")  # Tema azul escuro
 
 def is_valid_contact(contact):
     """
     Verifica se o texto fornecido é um número de contato válido no formato brasileiro.
     """
-    # Padrão para números de telefone brasileiros: (XX) XXXXX-XXXX ou (XX) XXXX-XXXX
     pattern = r"^\(?\d{2}\)?\s?\d{4,5}-\d{4}$"
     return bool(re.match(pattern, contact))
 
 def create_interface():
-    # Configurar o tema do PySimpleGUI
-    sg.theme('Reddit')
+    root = ctk.CTk()
+    root.title("Buscar")
+    root.geometry("400x500")  # Tamanho da janela
+    root.configure(fg_color="#1C2526")  # Cor de fundo escura
 
-    # Definir o layout da janela
-    tela_busca = [
-        [sg.Text('Estabelecimentos comerciais')],
-        [sg.Input(key='comercio')],
-        [sg.Text('Cidade')],
-        [sg.Input(key='local')],
-        [sg.Button('Buscar')]
-    ]
+    # Título
+    ctk.CTkLabel(
+        root,
+        text="Buscar Estabelecimentos",
+        font=("Arial", 20, "bold"),
+        text_color="white"
+    ).pack(pady=20)
 
-    # Criar a janela
-    janela = sg.Window('Buscar', layout=tela_busca)
+    # Frame para os campos de entrada
+    frame = ctk.CTkFrame(root, fg_color="#1C2526")
+    frame.pack(pady=10, padx=20, fill="both")
 
-    # Loop de eventos
-    while True:
-        event, values = janela.read()
-        if event == sg.WIN_CLOSED or event == 'Buscar':
-            break
+    # Label e entrada para "Estabelecimentos comerciais"
+    ctk.CTkLabel(
+        frame,
+        text="Estabelecimentos comerciais",
+        font=("Arial", 14),
+        text_color="white"
+    ).pack(pady=(10, 0))
+    comercio_entry = ctk.CTkEntry(
+        frame,
+        width=300,
+        height=40,
+        font=("Arial", 14),
+        fg_color="#2A2F30",
+        text_color="white",
+        placeholder_text="Digite o tipo de comércio",
+        placeholder_text_color="gray"
+    )
+    comercio_entry.pack(pady=10)
 
-    # Fechar a janela
-    janela.close()
+    # Label e entrada para "Cidade"
+    ctk.CTkLabel(
+        frame,
+        text="Cidade",
+        font=("Arial", 14),
+        text_color="white"
+    ).pack(pady=(10, 0))
+    local_entry = ctk.CTkEntry(
+        frame,
+        width=300,
+        height=40,
+        font=("Arial", 14),
+        fg_color="#2A2F30",
+        text_color="white",
+        placeholder_text="Digite a cidade",
+        placeholder_text_color="gray"
+    )
+    local_entry.pack(pady=10)
 
-    # Pegar os valores de entrada
-    comercio = values['comercio']
-    local = values['local']
+    # Variável para armazenar o resultado
+    busca = ctk.StringVar()
 
-    # Concatenar os valores e buscar no Google Maps
-    busca = f'{comercio} {local}'
+    def on_buscar():
+        comercio = comercio_entry.get()
+        local = local_entry.get()
+        busca.set(f"{comercio} {local}")
+        root.destroy()
 
-    return busca
+    # Botão "Buscar"
+    ctk.CTkButton(
+        root,
+        text="Buscar",
+        command=on_buscar,
+        fg_color="#28A745",  # Verde como na imagem
+        hover_color="#218838",
+        font=("Arial", 14, "bold"),
+        text_color="white",
+        width=300,
+        height=40
+    ).pack(pady=20)
+
+    root.mainloop()
+    return busca.get()
 
 def create_mensagem_interface():
-    # Configurar o tema do PySimpleGUI
-    sg.theme('Reddit')
+    root = ctk.CTk()
+    root.title("Enviar Mensagem")
+    root.geometry("400x500")
+    root.configure(fg_color="#1C2526")
 
-    # Definir o layout da janela
-    tela_busca = [
-        [sg.Text('Descrição', font=("Arial", 16))],
-        [sg.Multiline(size=(50, 5), key='descricao')],
-        [sg.Button('enviar')]
-    ]
+    # Título
+    ctk.CTkLabel(
+        root,
+        text="Enviar Mensagem",
+        font=("Arial", 20, "bold"),
+        text_color="white"
+    ).pack(pady=20)
 
-    # Criar a janela
-    janela = sg.Window('enviar', layout=tela_busca)
+    # Frame para o campo de texto
+    frame = ctk.CTkFrame(root, fg_color="#1C2526")
+    frame.pack(pady=10, padx=20, fill="both")
 
-    # Loop de eventos
-    while True:
-        event, values = janela.read()
-        if event == sg.WIN_CLOSED or event == 'enviar':
-            break
+    # Label e campo de texto para "Descrição"
+    ctk.CTkLabel(
+        frame,
+        text="Descrição",
+        font=("Arial", 14),
+        text_color="white"
+    ).pack(pady=(10, 0))
+    descricao_text = ctk.CTkTextbox(
+        frame,
+        width=300,
+        height=150,
+        font=("Arial", 14),
+        fg_color="#2A2F30",
+        text_color="white"
+    )
+    descricao_text.pack(pady=10)
 
-    # Fechar a janela
-    janela.close()
+    # Variável para armazenar o resultado
+    conteudo = ctk.StringVar()
 
-    # Pegar os valores de entrada
-    conteudo= values['descricao']
-    
+    def on_enviar():
+        conteudo.set(descricao_text.get("1.0", "end-1c").strip())
+        root.destroy()
 
-    # Concatenar os valores e buscar no Google Maps
-    busca = f'{conteudo} '
+    # Botão "Enviar"
+    ctk.CTkButton(
+        root,
+        text="Enviar",
+        command=on_enviar,
+        fg_color="#28A745",  # Verde como na imagem
+        hover_color="#218838",
+        font=("Arial", 14, "bold"),
+        text_color="white",
+        width=300,
+        height=40
+    ).pack(pady=20)
 
-    return busca
+    root.mainloop()
+    return conteudo.get()
 
 def extrair_dados_google_maps(driver, planilha_path, buscar):
     """
     Extrai dados de nome e contato do Google Maps e salva em uma planilha Excel.
-
-    Args:
-        driver (webdriver): O WebDriver do Selenium configurado.
-        planilha_path (str): Caminho da planilha Excel para salvar os dados.
-        buscar (str): Termo de busca no Google Maps.
     """
-
     planilha = openpyxl.load_workbook(planilha_path)
     dados = planilha['contatos']
 
-    # Acessar o Google Maps
     driver.get("https://www.google.com.br/maps/preview")
     sleep(2)
 
-    # Busca no Google Maps
     escreve = driver.find_element(By.XPATH, '//*[@id="searchboxinput"]')
     sleep(1)
     escreve.send_keys(buscar)
@@ -111,7 +178,6 @@ def extrair_dados_google_maps(driver, planilha_path, buscar):
     botao_pesquisa.click()
     sleep(1)
 
-    # Scroll para carregar todos os resultados
     last_height = driver.execute_script("return document.body.scrollHeight")
     quantidade_anterior = 0
 
@@ -129,7 +195,6 @@ def extrair_dados_google_maps(driver, planilha_path, buscar):
         else:
             break
 
-    # Loop para clicar em cada elemento e extrair dados
     elements = driver.find_elements(By.XPATH, '//a[@class="hfpxzc"]')
     total_elements = len(elements)
 
@@ -141,7 +206,6 @@ def extrair_dados_google_maps(driver, planilha_path, buscar):
             element.click()
             sleep(1)
 
-            # Extrair nome e contato
             nome = driver.find_element(By.XPATH, '//h1[text()]').text
             contato = "Não tem contato"
 
@@ -162,7 +226,6 @@ def extrair_dados_google_maps(driver, planilha_path, buscar):
             planilha.save(planilha_path)
             sleep(1)
 
-            # Voltar para a lista
             driver.find_element(By.XPATH, '//*[@id="omnibox-singlebox"]/div/div[1]/button/span').click()
             sleep(3)
         except Exception as e:
@@ -172,63 +235,42 @@ def extrair_dados_google_maps(driver, planilha_path, buscar):
 def enviar_mensagens_whatsapp(file_path, chrome_user_data_dir, conteudo):
     """
     Envia mensagens para contatos armazenados em uma planilha Excel usando o WhatsApp Web.
-
-    Args:
-        file_path (str): Caminho da planilha Excel com os contatos.
-        chrome_user_data_dir (str): Diretório de dados do usuário do Chrome.
-        conteudo (str): Conteúdo da descrição inserida.
     """
-
-    # Configuração do Selenium para se conectar ao navegador já aberto
     options = webdriver.ChromeOptions()
-    options.add_experimental_option("debuggerAddress", "localhost:9222")  # Conecta à porta de depuração
-    options.add_argument(f"user-data-dir={chrome_user_data_dir}")  # Usar o diretório de dados do usuário
+    options.add_experimental_option("debuggerAddress", "localhost:9222")
+    options.add_argument(f"user-data-dir={chrome_user_data_dir}")
 
-    # Usando o WebDriver Manager para baixar o ChromeDriver automaticamente
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
 
-    # Abra o WhatsApp Web
     driver.get("https://web.whatsapp.com/")
-    sleep(30)  # Aumente esse tempo se necessário
+    sleep(30)
 
-    # Carregar a planilha Excel
     workbook = load_workbook(file_path)
     sheet = workbook.active
 
-    # Loop pelos contatos na planilha
-    for row in sheet.iter_rows(min_row=2, values_only=True):  # Comece na linha 3 para ignorar cabeçalhos
-        nome = row[0]  # Primeira coluna: Nome
-        contato = str(row[1])  # Segunda coluna: Contato
+    for row in sheet.iter_rows(min_row=2, values_only=True):
+        nome = row[0]
+        contato = str(row[1])
 
-        # Verifique se o contato é "(Não tem contato)"
-        if contato == "(Não tem contato)":
-            print(f"Ignorando {nome}, pois o contato está marcado como '(Não tem contato)'.")
+        if contato == "Não tem contato":
+            print(f"Ignorando {nome}, pois o contato está marcado como 'Não tem contato'.")
             continue
 
-        # AQUI ESCREVE A MENSAGEM 
         mensagem = f"Olá {nome}! {conteudo}"
-
-        # Construir a URL do número no WhatsApp Web
         url = f"https://web.whatsapp.com/send?phone={contato}&text={mensagem}"
 
-        # Abrir a conversa com o número
         driver.get(url)
-
-        # Aguarde a página carregar
         sleep(10)
 
         try:
-            # Clique no botão de enviar
             send_button = driver.find_element(By.XPATH, "//span[@data-icon='send']")
             send_button.click()
             print(f"Mensagem enviada para {nome} ({contato}).")
         except Exception as e:
             print(f"Não foi possível enviar mensagem para {nome} ({contato}). Erro: {e}")
 
-        # Aguarde um tempo antes de enviar para o próximo contato
         sleep(10)
 
-    # Finalização
     print("Mensagens enviadas para todos os contatos válidos da planilha.")
     driver.quit()
 
@@ -248,18 +290,17 @@ def criar_planilha(buscar):
     dados.append(["nomes", "contato"])
     planilha.save(planilha_path)
 
-    return planilha_path  # Retorna o nome do arquivo criado
+    return planilha_path
 
 def main():
     """
     Função principal para executar o script de extração e envio de mensagens.
     """
-    # Executar a interface primeiro
     buscar = create_interface()
     conteudo = create_mensagem_interface()
 
-    planilha_path = criar_planilha(buscar)  # Cria a planilha com base na busca
-    chrome_user_data_dir = r"C:\Users\Win10\AppData\Local\Google\Chrome\User Data"  # Substitua pelo caminho correto
+    planilha_path = criar_planilha(buscar)
+    chrome_user_data_dir = r"C:\Users\Win10\AppData\Local\Google\Chrome\User Data"
     chrome_path = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
 
     chrome_command = f'"{chrome_path}" --remote-debugging-port=9222 --user-data-dir="C:\\ChromeDebug"'
@@ -273,22 +314,17 @@ def main():
     
     sleep(2)
 
-    # Configuração do Selenium para se conectar ao navegador já aberto
     options = webdriver.ChromeOptions()
-    options.add_experimental_option("debuggerAddress", "localhost:9222")  # Conecta à porta de depuração
-    options.add_argument(f"user-data-dir={chrome_user_data_dir}")  # Usar o diretório de dados do usuário
+    options.add_experimental_option("debuggerAddress", "localhost:9222")
+    options.add_argument(f"user-data-dir={chrome_user_data_dir}")
 
-    # Usando o WebDriver Manager para baixar o ChromeDriver automaticamente
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
 
     try:
         print("Extraindo dados do Google Maps...")
         extrair_dados_google_maps(driver, planilha_path, buscar)
 
-        
-        print("Finalizado pesquisa no Google Maps, vamos começar o envio de mensagem! ")
-    
-
+        print("Finalizado pesquisa no Google Maps, vamos começar o envio de mensagem!")
         print("Enviando mensagens no WhatsApp...")
         enviar_mensagens_whatsapp(planilha_path, chrome_user_data_dir, conteudo)
 
@@ -298,4 +334,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
